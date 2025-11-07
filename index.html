@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>札幌イベントMAP｜今日・週末・来週 / Hotels & Food Guide</title>
+  <meta name="description" content="札幌・道央のイベントを今日・今週末・来週で自動整理。宿・グルメも地図で一発検索。英語/韓国語/中国語対応。">
+  <link rel="canonical" href="https://YOUR_USERNAME.github.io/" />
+  <!-- hreflang (必要に応じて増やす) -->
+  <link rel="alternate" href="https://YOUR_USERNAME.github.io/" hreflang="ja" />
+  <link rel="alternate" href="https://YOUR_USERNAME.github.io/en/" hreflang="en" />
+  <meta name="robots" content="index,follow" />
+
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="" crossorigin="anonymous">
+  <style>
+    :root{--bg:#0b0c10;--card:#13151a;--muted:#8a9099;--main:#00c2ff}
+    *{box-sizing:border-box}
+    body{margin:0;background:#0b0c10;color:#e9eef3;font-family:system-ui,Segoe UI,Helvetica,Arial,sans-serif}
+    header{position:sticky;top:0;z-index:10;background:linear-gradient(180deg,#0b0c10 90%,transparent)}
+    .container{max-width:1200px;margin:0 auto;padding:12px 16px}
+    h1{font-size:20px;margin:8px 0}
+    .controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+    .btn{background:#1b1f27;border:1px solid #2a2f3a;color:#e9eef3;padding:8px 12px;border-radius:10px;cursor:pointer}
+    .btn.active{border-color:var(--main);box-shadow:0 0 0 2px #00c2ff40}
+    .chips{display:flex;gap:8px;flex-wrap:wrap}
+    .chip{padding:6px 10px;border-radius:999px;background:#161a21;border:1px solid #2a2f3a;color:#cfd6df;cursor:pointer}
+    .chip.active{background:#0e2630;border-color:#00c2ff;color:#e9f6ff}
+    .grid{display:grid;grid-template-columns:1.1fr 1fr;gap:12px}
+    #map{height:calc(100vh - 180px);border-radius:16px;outline:1px solid #242a34}
+    .list{background:#11151b;border:1px solid #242a34;border-radius:16px;padding:10px;overflow:auto;max-height:calc(100vh - 180px)}
+    .card{background:#0f1319;border:1px solid #222836;border-radius:12px;padding:10px;margin-bottom:8px}
+    .card h3{margin:0 0 6px;font-size:15px}
+    .badge{font-size:11px;background:#0e2630;border:1px solid #224c5f;color:#bfeaff;padding:3px 6px;border-radius:8px;margin-right:6px}
+    .muted{color:#97a0ab;font-size:13px}
+    .legend{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 0}
+    .legend span{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#b8c0cc}
+    .dot{width:10px;height:10px;border-radius:999px;display:inline-block}
+    .dot.event{background:#ff6b6b}
+    .dot.hotel{background:#ffd166}
+    .dot.food{background:#06d6a0}
+    footer{padding:24px 16px;color:#93a0ad}
+    .lang{margin-left:auto}
+    a{color:#8bd3ff;text-decoration:none}
+    a:hover{text-decoration:underline}
+    /* モバイル */
+    @media(max-width:900px){
+      .grid{grid-template-columns:1fr}
+      #map{height:60vh}
+    }
+  </style>
+
+  <!-- JSON-LD（トップページ：EventのItemList例。詳細ページは個別Event推奨） -->
+  <script type="application/ld+json" id="ld-event-list">
+  {
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    "itemListElement": []
+  }
+  </script>
+</head>
+<body>
+<header>
+  <div class="container controls">
+    <h1 id="siteTitle">札幌イベントMAP</h1>
+    <div class="chips" id="dateTabs">
+      <button class="chip" data-range="today">今日</button>
+      <button class="chip" data-range="weekend">今週末</button>
+      <button class="chip" data-range="nextweek">来週</button>
+      <button class="chip active" data-range="all">すべて</button>
+    </div>
+    <div class="chips" id="cats">
+      <button class="chip active" data-cat="event">イベント</button>
+      <button class="chip active" data-cat="hotel">宿泊</button>
+      <button class="chip active" data-cat="food">グルメ</button>
+    </div>
+    <div class="legend">
+      <span><i class="dot event"></i>イベント</span>
+      <span><i class="dot hotel"></i>宿</span>
+      <span><i class="dot food"></i>グルメ</span>
+    </div>
+    <div class="lang">
+      <button class="btn" data-lang="ja">日本語</button>
+      <button class="btn" data-lang="en">EN</button>
+    </div>
+  </div>
+</header>
+
+<main class="container">
+  <div class="grid">
+    <div id="map"></div>
+    <div class="list" id="list"></div>
+  </div>
+</main>
+
+<footer class="container">
+  <small class="muted">
+    Map © OpenStreetMap contributors • Using Leaflet.
+    データは出典サイトの公開情報を要約。リンク先を必ずご確認ください。
+  </small>
+</footer>
+
+<!-- 依存ライブラリ -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/i18next@23.11.5/dist/umd/i18next.min.js"></script>
+<script src="https://unpkg.com/i18next-browser-languagedetector@7.2.0/i18nextBrowserLanguageDetector.min.js"></script>
+
+<script>
+/* ========= 基本設定 ========= */
+const STATE = {
+  lang: 'ja',
+  dateRange: 'all',
+  cats: new Set(['event','hotel','food']),
+  markers: [],
+  map: null
+};
+
+// 祝日ロジックは簡易。後で地域カレンダーJSONを差し替え可能。
+function isWeekend(date){ const d=date.getDay(); return d===0||d===6; }
+function inRange(evt) {
+  if(STATE.dateRange==='all') return true;
+  const start = new Date(evt.startDate);
+  const now = new Date(); // JST前提
+  const endOfWeek = (()=>{ const d=new Date(now); d.setDate(d.getDate() + (6 - d.getDay())); return d;})();
+  const nextWeekStart = (()=>{ const d=new Date(now); const add = (7 - d.getDay()) || 7; d.setDate(d.getDate()+add); return d;})();
+  const nextWeekEnd = (()=>{ const d=new Date(nextWeekStart); d.setDate(d.getDate()+6); return d;})();
+  if(STATE.dateRange==='today'){
+    const s = new Date(now.toDateString());
+    const e = new Date(s); e.setDate(e.getDate()+1);
+    return start>=s && start<e;
+  }
+  if(STATE.dateRange==='weekend'){
+    return start>=new Date(now.toDateString()) && isWeekend(start) && start<=endOfWeek;
+  }
+  if(STATE.dateRange==='nextweek'){
+    return start>=nextWeekStart && start<=nextWeekEnd;
+  }
+}
+
+/* ========= 多言語 ========= */
+const I18N_FILES = {
+  ja: 'i18n/ja.json',
+  en: 'i18n/en.json'
+};
+
+async function loadI18n(lang){
+  const detector = new i18nextBrowserLanguageDetector();
+  await i18next
+    .use(detector)
+    .init({
+      lng: lang,
+      fallbackLng: 'ja',
+      resources: {
+        // 初回は外部JSON読み込み、以降はキャッシュでもOK
+      }
+    });
+  // 外部JSONをロード
+  const res = await fetch(I18N_FILES[lang]);
+  const data = await res.json();
+  i18next.addResources(lang,'translation',data);
+  STATE.lang = lang;
+  applyI18n();
+}
+function t(key, vars={}){ return i18next.t(key, vars); }
+function applyI18n(){
+  document.getElementById('siteTitle').textContent = t('site.title');
+  document.querySelectorAll('[data-range="today"]').forEach(el=>el.textContent=t('date.today'));
+  document.querySelectorAll('[data-range="weekend"]').forEach(el=>el.textContent=t('date.weekend'));
+  document.querySelectorAll('[data-range="nextweek"]').forEach(el=>el.textContent=t('date.nextweek'));
+  document.querySelectorAll('[data-range="all"]').forEach(el=>el.textContent=t('date.all'));
+  // リスト再描画
+  render();
+}
+
+/* ========= 地図初期化（Leaflet） ========= */
+function initMap(){
+  STATE.map = L.map('map').setView([43.0618, 141.3545], 12); // 札幌中心
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+    maxZoom: 19,
+    attribution: '&copy; OpenStreetMap'
+  }).addTo(STATE.map);
+}
+
+/* ========= 無料POI: Overpass APIで宿/飲食を取得 =========
+   注意: 商用規模ではキャッシュ必須。負荷軽減のため初回ロード時のみ取得。 */
+async function fetchPOIs(){
+  const overpassUrl = 'https://overpass-api.de/api/interpreter';
+  const query = `
+  [out:json][timeout:25];
+  (
+    node["tourism"="hotel"](43.0,141.2,43.2,141.5);
+    node["amenity"="restaurant"](43.0,141.2,43.2,141.5);
+  );
+  out center 100;
+  `;
+  const res = await fetch(overpassUrl, { method:'POST', body: query });
+  if(!res.ok) return [];
+  const json = await res.json();
+  // OSMタグを内部カテゴリへ
+  return json.elements.map(el=>{
+    const cat = el.tags.tourism==='hotel' ? 'hotel'
+             : el.tags.amenity==='restaurant' ? 'food'
+             : 'other';
+    return {
+      id: 'osm-'+el.id,
+      cat,
+      name: el.tags.name || '(no name)',
+      lat: el.lat || el.center?.lat,
+      lon: el.lon || el.center?.lon,
+      url: el.tags.website || '',
+      address: [el.tags['addr:city']||'', el.tags['addr:street']||'', el.tags['addr:housenumber']||''].filter(Boolean).join(' ')
+    };
+  });
+}
+
+/* ========= イベント読み込み（JSONに正規化済み前提） =========
+   data/events.json を編集していけばOK。後でRSS→JSON化の自動化を足す。 */
+async function fetchEvents(){
+  const res = await fetch('data/events.json',{cache:'no-store'});
+  if(!res.ok) return [];
+  const events = await res.json();
+  return events;
+}
+
+/* ========= マーカー＆リスト描画 ========= */
+function clearMarkers(){ STATE.markers.forEach(m=>m.remove()); STATE.markers = []; }
+
+function addMarker(item){
+  if(!item.lat||!item.lon) return;
+  const color = item.cat==='event' ? '#ff6b6b' : (item.cat==='hotel' ? '#ffd166' : '#06d6a0');
+  const icon = L.divIcon({
+    className: 'custom-marker',
+    html: `<div style="background:${color};width:12px;height:12px;border-radius:999px;border:2px solid #0b0c10"></div>`,
+    iconSize: [16,16]
+  });
+  const marker = L.marker([item.lat,item.lon],{icon}).addTo(STATE.map);
+  marker.on('click',()=>{
+    // 対応カードへスクロール
+    const el = document.querySelector(\`.card[data-id="\${item.id}"]\`);
+    if(el){ el.scrollIntoView({behavior:'smooth',block:'center'}); el.classList.add('flash'); setTimeout(()=>el.classList.remove('flash'),900); }
+  });
+  STATE.markers.push(marker);
+}
+
+let DATA = { events:[], pois:[] };
+
+function render(){
+  clearMarkers();
+  const list = document.getElementById('list');
+  list.innerHTML = '';
+  const items = [];
+
+  // イベント
+  DATA.events.filter(e=>STATE.cats.has('event') && inRange(e))
+    .forEach(e=>{
+      items.push({...e, cat:'event'});
+    });
+
+  // POI
+  DATA.pois.filter(p=>STATE.cats.has(p.cat)).forEach(p=>items.push(p));
+
+  // マップ＆リスト
+  items.forEach(item=>{
+    addMarker(item);
+    const div = document.createElement('div');
+    div.className='card';
+    div.dataset.id=item.id;
+    div.innerHTML = `
+      <div>
+        <span class="badge">${item.cat.toUpperCase()}</span>
+        <h3>${escapeHtml(item.name)}</h3>
+        ${item.startDate? `<div class="muted">${fmtDate(item.startDate)}${item.endDate? ' - '+fmtDate(item.endDate):''}</div>`:''}
+        ${item.venue? `<div class="muted">${escapeHtml(item.venue)}</div>`: ''}
+        ${item.address? `<div class="muted">${escapeHtml(item.address)}</div>`: ''}
+        ${item.price? `<div class="muted">${escapeHtml(item.price)}</div>`: ''}
+        <div style="margin-top:6px">${item.url? `<a href="${item.url}" target="_blank" rel="nofollow noopener">公式/予約/詳細</a>`:''}</div>
+      </div>
+    `;
+    list.appendChild(div);
+  });
+
+  // JSON-LD（ItemList）を再生成（リストにイベントがある場合）
+  const ld = {
+    "@context":"https://schema.org",
+    "@type":"ItemList",
+    "itemListElement": DATA.events.filter(inRange).slice(0,50).map((e,i)=>({
+      "@type":"ListItem","position":i+1,"url": (e.permalink || (location.origin + '/#event-' + e.id))
+    }))
+  };
+  document.getElementById('ld-event-list').textContent = JSON.stringify(ld);
+}
+
+function fmtDate(s){ try{ const d=new Date(s); return d.toLocaleDateString(STATE.lang==='ja'?'ja-JP':'en-US',{month:'short',day:'numeric',weekday:'short'});}catch(e){return s;} }
+function escapeHtml(s){ return String(s||'').replace(/[&<>"']/g, m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' })[m]); }
+
+/* ========= 初期ロード ========= */
+async function bootstrap(){
+  initMap();
+  await loadI18n(STATE.lang);
+  const [events, pois] = await Promise.all([fetchEvents(), fetchPOIs()]);
+  DATA.events = events;
+  DATA.pois = pois;
+  render();
+}
+
+/* ========= UIイベント ========= */
+document.getElementById('dateTabs').addEventListener('click',e=>{
+  const btn = e.target.closest('.chip'); if(!btn) return;
+  document.querySelectorAll('#dateTabs .chip').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  STATE.dateRange = btn.dataset.range;
+  render();
+});
+document.getElementById('cats').addEventListener('click',e=>{
+  const btn = e.target.closest('.chip'); if(!btn) return;
+  const c = btn.dataset.cat;
+  if(STATE.cats.has(c)) { STATE.cats.delete(c); btn.classList.remove('active'); }
+  else { STATE.cats.add(c); btn.classList.add('active'); }
+  render();
+});
+document.querySelector('.lang').addEventListener('click', e=>{
+  const b=e.target.closest('.btn'); if(!b) return;
+  document.querySelectorAll('.lang .btn').forEach(x=>x.classList.remove('active'));
+  b.classList.add('active');
+  loadI18n(b.dataset.lang);
+});
+
+bootstrap();
+</script>
+</body>
+</html>
