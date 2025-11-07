@@ -22,6 +22,7 @@
     "lon": 141.3544,
     "url": "https://example.com/event/sapporo-city-jazz",
     "permalink": "https://YOUR_USERNAME.github.io/event/sapporo-city-jazz",
-    "price": "一部有料"
+    "price": "一部有料",
+    "address": "北海道札幌市"
   }
 ]
