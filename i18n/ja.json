@@ -1,0 +1,9 @@
+{
+  "site": { "title": "札幌イベントMAP" },
+  "date": {
+    "today": "今日",
+    "weekend": "今週末",
+    "nextweek": "来週",
+    "all": "すべて"
+  }
+}
