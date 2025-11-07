@@ -1,0 +1,9 @@
+{
+  "site": { "title": "Sapporo Events Map" },
+  "date": {
+    "today": "Today",
+    "weekend": "This Weekend",
+    "nextweek": "Next Week",
+    "all": "All"
+  }
+}
